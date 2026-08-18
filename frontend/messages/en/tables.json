@@ -1,0 +1,69 @@
+{
+  "scan": {
+    "unavailableTitle": "This QR code is not working",
+    "unavailableDescription": "The table code is out of date or has been switched off. You can still browse the menu — please ask a waiter to take your order.",
+    "openMenu": "Open the menu",
+    "metaTitle": "Table not found"
+  },
+  "admin": {
+    "title": "Tables",
+    "description": "QR codes, table numbers and scan statistics.",
+    "unauthorized": "Sign in as an administrator to manage tables.",
+    "loadFailed": "The table list could not be loaded.",
+    "stats": {
+      "tables": "Tables in total",
+      "active": "Active tables",
+      "scansLast7Days": "Scans in the last 7 days"
+    },
+    "empty": {
+      "title": "No tables yet",
+      "description": "Add the first table — its QR code is generated automatically."
+    },
+    "columns": {
+      "number": "Number",
+      "label": "Label",
+      "status": "Status",
+      "scans": "Scans",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Disabled"
+    },
+    "scansUnknown": "Not available",
+    "actions": {
+      "create": "Add table",
+      "printAll": "Print all",
+      "showQr": "Show QR code",
+      "download": "Download",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "createTitle": "New table",
+      "editTitle": "Edit table",
+      "number": "Table number",
+      "numberHint": "The number printed on the table. Must be unique.",
+      "label": "Label",
+      "labelHint": "For example: Terrace 3",
+      "isActive": "Active",
+      "isActiveHint": "A disabled table's QR code does not let a guest through to the menu."
+    },
+    "qr": {
+      "title": "QR code for table {number}",
+      "description": "Print it and stick it on the table.",
+      "urlLabel": "Address"
+    },
+    "delete": {
+      "title": "Delete table",
+      "description": "{name} and its scan history will be removed permanently. This cannot be undone."
+    },
+    "toast": {
+      "created": "Table added",
+      "updated": "Table updated",
+      "deleted": "Table deleted",
+      "sheetReady": "Print sheet ready",
+      "failed": "The action could not be completed"
+    }
+  }
+}

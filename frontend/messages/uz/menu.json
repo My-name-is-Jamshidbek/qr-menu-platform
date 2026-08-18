@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "title": "Menyu",
+    "titleForCategory": "{category}",
+    "description": "BOSS KAFE menyusi: milliy taomlar, grill, salatlar, shirinliklar va ichimliklar. Narxlar va tarkiblar bilan.",
+    "descriptionForCategory": "BOSS KAFE menyusidagi \"{category}\" bo'limi — {count, plural, one {# ta taom} other {# ta taom}}, narxlari bilan.",
+    "ogImageAlt": "BOSS KAFE menyusi"
+  },
+  "heading": {
+    "title": "Menyu",
+    "subtitle": "Har kuni yangi mahsulotlardan tayyorlanadi. Narxlar so'mda ko'rsatilgan.",
+    "allCategories": "Barcha taomlar"
+  },
+  "filters": {
+    "categoriesLabel": "Taom bo'limlari",
+    "subcategoriesLabel": "{category} ichidagi bo'limlar",
+    "all": "Hammasi",
+    "allInCategory": "Barchasi"
+  },
+  "search": {
+    "label": "Taom qidirish",
+    "placeholder": "Masalan: lag'mon",
+    "clear": "Qidiruvni tozalash",
+    "resultCount": "{count, plural, =0 {Hech nima topilmadi} one {# ta taom topildi} other {# ta taom topildi}}",
+    "noResultsTitle": "\"{query}\" bo'yicha hech nima topilmadi",
+    "noResultsDescription": "Boshqa so'z bilan urinib ko'ring yoki boshqa bo'limni tanlang."
+  },
+  "product": {
+    "priceLabel": "Narxi",
+    "currency": "so'm",
+    "translationPending": "Tarjima qilinmagan",
+    "translationPendingHint": "Bu taom nomi hali o'zbek tilida ko'rsatilmoqda."
+  },
+  "counts": {
+    "dishes": "{count, plural, =0 {taom yo'q} one {# ta taom} other {# ta taom}}"
+  },
+  "empty": {
+    "title": "Bu bo'lim hozircha bo'sh",
+    "description": "Bu bo'limga hali taom qo'shilmagan. Boshqa bo'limlarni ko'rib chiqing.",
+    "action": "Barcha taomlar"
+  },
+  "error": {
+    "title": "Menyuni yuklab bo'lmadi",
+    "description": "Server bilan aloqa uzildi. Iltimos, biroz kutib qayta urinib ko'ring.",
+    "retry": "Qayta urinish"
+  }
+}

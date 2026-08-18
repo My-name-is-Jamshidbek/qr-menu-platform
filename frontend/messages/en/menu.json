@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "title": "Menu",
+    "titleForCategory": "{category}",
+    "description": "The BOSS KAFE menu: national dishes, grill, salads, desserts and drinks, with prices.",
+    "descriptionForCategory": "The \"{category}\" section of the BOSS KAFE menu — {count, plural, one {# dish} other {# dishes}} with prices.",
+    "ogImageAlt": "The BOSS KAFE menu"
+  },
+  "heading": {
+    "title": "Menu",
+    "subtitle": "Cooked fresh every day. Prices are shown in Uzbek so'm.",
+    "allCategories": "All dishes"
+  },
+  "filters": {
+    "categoriesLabel": "Menu sections",
+    "subcategoriesLabel": "Sections within {category}",
+    "all": "All",
+    "allInCategory": "All"
+  },
+  "search": {
+    "label": "Search the menu",
+    "placeholder": "For example: lagman",
+    "clear": "Clear search",
+    "resultCount": "{count, plural, =0 {Nothing found} one {# dish found} other {# dishes found}}",
+    "noResultsTitle": "Nothing matches \"{query}\"",
+    "noResultsDescription": "Try a different word, or pick another section of the menu."
+  },
+  "product": {
+    "priceLabel": "Price",
+    "currency": "so'm",
+    "translationPending": "Not translated yet",
+    "translationPendingHint": "This dish is still shown under its Uzbek name."
+  },
+  "counts": {
+    "dishes": "{count, plural, =0 {no dishes} one {# dish} other {# dishes}}"
+  },
+  "empty": {
+    "title": "This section is empty for now",
+    "description": "No dishes have been added here yet. Have a look at the other sections.",
+    "action": "All dishes"
+  },
+  "error": {
+    "title": "The menu could not be loaded",
+    "description": "We lost contact with the server. Please wait a moment and try again.",
+    "retry": "Try again"
+  }
+}

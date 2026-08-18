@@ -1,0 +1,34 @@
+{
+  "name": "boss-kafe-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "npm run gen:messages",
+    "dev": "next dev",
+    "prebuild": "npm run gen:messages",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "gen:messages": "node scripts/generate-message-catalog.mjs",
+    "gen:api": "openapi-typescript \"${API_SCHEMA_URL:-http://localhost:8100/api/schema/}\" --output src/types/api.d.ts"
+  },
+  "dependencies": {
+    "next": "16.3.1",
+    "next-intl": "^4.13.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "openapi-typescript": "^7.13.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

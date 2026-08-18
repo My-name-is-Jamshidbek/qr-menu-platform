@@ -1,0 +1,234 @@
+/*
+ * "Refined Gold" design tokens — the single source of truth for the visual system.
+ *
+ * Two layers live in this file:
+ *
+ *   1. `:root` holds the raw, named values exactly as `docs/DESIGN_SYSTEM.md`
+ *      specifies them (`--gold-400`, `--ground-base`, …). Anything that is not a
+ *      Tailwind utility — gradients, ring widths, timings — is consumed from here.
+ *   2. `@theme` re-exports those values into Tailwind's namespaces so components
+ *      can write semantic utilities (`bg-ground-surface`, `text-gold-300`,
+ *      `rounded-lg`, `shadow-card`) and never a raw hex value.
+ *
+ * Rule of the system: gold is a precious accent on a warm near-black ground.
+ * It is never a page background, and text on a gold fill is always `--ink`.
+ */
+
+:root {
+  /* Ground — warm near-black, not neutral grey. */
+  --ground-base: #0e0d0b;
+  --ground-surface: #17150f;
+  --ground-elevated: #211d14;
+  --ground-border: #2e2819;
+
+  /* Gold ramp. 400 is the original brand anchor. */
+  --gold-50: #fbf6e8;
+  --gold-100: #f5eacb;
+  --gold-200: #ebd79c;
+  --gold-300: #e0c36c;
+  --gold-400: #d4af37;
+  --gold-500: #bf9a2a;
+  --gold-600: #9a7a1f;
+  --gold-700: #6e5716;
+  --gold-800: #45360e;
+  --gold-900: #241c07;
+
+  /* Neutrals. */
+  --cream: #f7f3e8;
+  --ink: #1a1712;
+  --muted: #8c8574;
+
+  /* Semantic. */
+  --success: #3f7d5a;
+  --danger: #a63d3d;
+  --warning: #b8862b;
+
+  /*
+   * Readable text versions of the semantic colours. The raw hues are fills; at
+   * text size on the dark ground they sit around 3:1, so each is lightened
+   * towards cream until it clears WCAG AA for body copy.
+   */
+  --success-text: #9ccdb1;
+  --danger-text: #e79a9a;
+  --warning-text: #e5c07b;
+
+  /*
+   * Gold as material. Flat gold reads as yellow; the light band at 42–58%
+   * is what makes it read as brushed metal. Never above ~25% of the viewport.
+   */
+  --gradient-gold: linear-gradient(
+    135deg,
+    var(--gold-600) 0%,
+    var(--gold-300) 42%,
+    var(--gold-200) 50%,
+    var(--gold-400) 58%,
+    var(--gold-700) 100%
+  );
+
+  /*
+   * Skeleton sweep. Warm rather than the usual grey pulse, with a faint gold
+   * band in the middle so a loading grid still belongs to this product.
+   */
+  --gradient-skeleton: linear-gradient(
+    90deg,
+    var(--ground-elevated) 0%,
+    var(--ground-border) 38%,
+    color-mix(in oklab, var(--gold-800), var(--ground-border) 45%) 50%,
+    var(--ground-border) 62%,
+    var(--ground-elevated) 100%
+  );
+
+  /* Hairline divider: gold that fades out at both ends. */
+  --gradient-hairline: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gold-700) 18%,
+    var(--gold-300) 50%,
+    var(--gold-700) 82%,
+    transparent 100%
+  );
+
+  /*
+   * Chevron for the native `<select>`. Inlined as a data URI because a
+   * background image cannot read a custom property, and stroked in `--gold-300`
+   * so the control matches the rest of the system.
+   */
+  --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23E0C36C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+
+  /* Elevation is warm — the shadow is tinted with the ground, never black. */
+  --shadow-card: 0 1px 2px rgb(14 13 11 / 0.3), 0 8px 24px -8px rgb(14 13 11 / 0.45);
+  --shadow-lifted: 0 2px 4px rgb(14 13 11 / 0.35), 0 18px 40px -12px rgb(14 13 11 / 0.6);
+  --shadow-modal: 0 24px 64px -12px rgb(14 13 11 / 0.65);
+
+  /* Focus — one ring definition so every interactive element matches. */
+  --focus-ring-color: var(--gold-300);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Motion. Both are forced to `0ms` under `prefers-reduced-motion`. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* Layout. */
+  --content-max: 1200px;
+  --gutter: clamp(1rem, 4vw, 2rem);
+  --header-height: 4rem;
+}
+
+/*
+ * Fonts are declared in a *non-inline* theme block on purpose: Tailwind emits
+ * `--font-display` / `--font-body` onto `:root`, and `next/font` redefines the
+ * same two variables on `<html>` (see `src/lib/fonts.ts`). The element-level
+ * declaration wins, so the utilities pick up the self-hosted faces and fall
+ * back to these stacks if a font file ever fails to load.
+ */
+@theme {
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: system-ui, "Segoe UI", "Helvetica Neue", sans-serif;
+  --default-font-family: var(--font-body);
+
+  /* Loading shimmer, driven by the `animate-skeleton` utility. */
+  --animate-skeleton: skeleton-sweep 1.6s ease-in-out infinite;
+
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Toast entrance: rises and fades in from below the viewport edge. */
+  --animate-toast-in: toast-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+@theme inline {
+  /* ---- Colors ----------------------------------------------------------- */
+  --color-ground-base: var(--ground-base);
+  --color-ground-surface: var(--ground-surface);
+  --color-ground-elevated: var(--ground-elevated);
+  --color-ground-border: var(--ground-border);
+
+  --color-gold-50: var(--gold-50);
+  --color-gold-100: var(--gold-100);
+  --color-gold-200: var(--gold-200);
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+  --color-gold-600: var(--gold-600);
+  --color-gold-700: var(--gold-700);
+  --color-gold-800: var(--gold-800);
+  --color-gold-900: var(--gold-900);
+
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success-text: var(--success-text);
+  --color-danger-text: var(--danger-text);
+  --color-warning-text: var(--warning-text);
+
+  /* ---- Type scale ------------------------------------------------------- */
+  --text-hero: clamp(2.5rem, 6vw, 4.5rem);
+  --text-hero--line-height: 1.04;
+  --text-hero--letter-spacing: -0.02em;
+  --text-hero--font-weight: 600;
+
+  --text-title: clamp(1.5rem, 3vw, 2rem);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 600;
+
+  --text-card: 1.125rem;
+  --text-card--line-height: 1.3;
+  --text-card--font-weight: 600;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-body--font-weight: 400;
+
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.08em;
+  --text-label--font-weight: 500;
+
+  --text-price: 1.125rem;
+  --text-price--line-height: 1.2;
+  --text-price--font-weight: 600;
+
+  /* ---- Radius ----------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation -------------------------------------------------------- */
+  --shadow-card: var(--shadow-card);
+  --shadow-lifted: var(--shadow-lifted);
+  --shadow-modal: var(--shadow-modal);
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --ease-out: var(--ease-out);
+
+  /* ---- Layout ----------------------------------------------------------- */
+  --container-content: var(--content-max);
+  --spacing-gutter: var(--gutter);
+  --spacing-header: var(--header-height);
+}

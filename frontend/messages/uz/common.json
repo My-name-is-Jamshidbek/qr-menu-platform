@@ -1,0 +1,52 @@
+{
+  "site": {
+    "name": "BOSS KAFE",
+    "tagline": "Sharqona ta'm, zamonaviy uslub"
+  },
+  "nav": {
+    "home": "Bosh sahifa",
+    "menu": "Menyu",
+    "about": "Biz haqimizda",
+    "contact": "Aloqa",
+    "admin": "Boshqaruv paneli",
+    "skipToContent": "Asosiy qismga o'tish",
+    "openMenu": "Menyuni ochish",
+    "closeMenu": "Menyuni yopish"
+  },
+  "language": {
+    "label": "Til",
+    "switch": "Tilni almashtirish",
+    "uz": "O'zbekcha",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "form": {
+    "optional": "ixtiyoriy",
+    "required": "majburiy"
+  },
+  "state": {
+    "loading": "Yuklanmoqda…",
+    "empty": "Ma'lumot topilmadi",
+    "saving": "Saqlanmoqda…",
+    "saved": "Saqlandi"
+  },
+  "errors": {
+    "generic": "Nimadir noto'g'ri ketdi.",
+    "notFound": "Sahifa topilmadi.",
+    "network": "Serverga ulanib bo'lmadi.",
+    "unauthorized": "Bu sahifaga ruxsatingiz yo'q.",
+    "saveFailed": "Saqlab bo'lmadi."
+  },
+  "actions": {
+    "retry": "Qayta urinish",
+    "back": "Orqaga",
+    "close": "Yopish",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "delete": "O'chirish",
+    "search": "Qidirish"
+  },
+  "footer": {
+    "rights": "Barcha huquqlar himoyalangan."
+  }
+}

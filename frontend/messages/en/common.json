@@ -1,0 +1,52 @@
+{
+  "site": {
+    "name": "BOSS KAFE",
+    "tagline": "Eastern flavour, modern style"
+  },
+  "nav": {
+    "home": "Home",
+    "menu": "Menu",
+    "about": "About",
+    "contact": "Contact",
+    "admin": "Admin panel",
+    "skipToContent": "Skip to content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "language": {
+    "label": "Language",
+    "switch": "Change language",
+    "uz": "O'zbekcha",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "form": {
+    "optional": "optional",
+    "required": "required"
+  },
+  "state": {
+    "loading": "Loading…",
+    "empty": "Nothing found",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+  "errors": {
+    "generic": "Something went wrong.",
+    "notFound": "Page not found.",
+    "network": "Could not reach the server.",
+    "unauthorized": "You do not have access to this page.",
+    "saveFailed": "Could not save."
+  },
+  "actions": {
+    "retry": "Retry",
+    "back": "Back",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "search": "Search"
+  },
+  "footer": {
+    "rights": "All rights reserved."
+  }
+}

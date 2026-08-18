@@ -1,0 +1,14 @@
+# End-to-end test suite. Selenium only — no Playwright anywhere in this project.
+#
+# Chromium and chromedriver are expected on the host; the suite does not
+# download a browser. Point E2E_CHROME_BINARY / E2E_CHROMEDRIVER at them if they
+# are not at /usr/bin/chromium and /usr/bin/chromedriver.
+
+selenium==4.31.0
+pytest==9.0.2
+
+# Fixtures create and delete their own rows through the REST API.
+requests==2.32.3
+
+# Clears the API's 5/min login throttle between the sign-in tests.
+redis==5.2.1

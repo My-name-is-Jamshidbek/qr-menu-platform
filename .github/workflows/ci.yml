@@ -1,0 +1,386 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# A new push to the same branch supersedes the run already in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '24'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend: static analysis, migration drift, and the pytest suite against real
+  # Postgres and Redis service containers.
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend (ruff, migrations, pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bosskafe
+          POSTGRES_USER: bosskafe
+          POSTGRES_PASSWORD: bosskafe
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bosskafe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+      DJANGO_DEBUG: 'True'
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: bosskafe
+      POSTGRES_USER: bosskafe
+      POSTGRES_PASSWORD: bosskafe
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      S3_BUCKET: bosskafe-media
+      FRONTEND_URL: http://localhost:3000
+      REVALIDATE_SECRET: ci-revalidate-secret
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Format check (ruff format)
+        run: ruff format --check .
+
+      - name: Detect missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Tests with coverage
+        run: pytest --cov=apps --cov-report=term-missing --cov-report=xml --cov-fail-under=85
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Frontend static checks. Neither ESLint nor tsc touches the network, so this
+  # job needs no API and stays fast.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend (lint, typecheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # Production build of the Next.js app.
+  #
+  # `generateStaticParams` on the menu route fetches the live menu, so the build
+  # is an integration step: it needs a running API, not a mock. The job therefore
+  # boots Postgres, Redis, migrates, seeds a demo menu and serves the API with
+  # gunicorn before running `next build`.
+  # ---------------------------------------------------------------------------
+  web-build:
+    name: Frontend (production build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bosskafe
+          POSTGRES_USER: bosskafe
+          POSTGRES_PASSWORD: bosskafe
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bosskafe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+      DJANGO_DEBUG: 'True'
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: bosskafe
+      POSTGRES_USER: bosskafe
+      POSTGRES_PASSWORD: bosskafe
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      S3_BUCKET: bosskafe-media
+      FRONTEND_URL: http://localhost:3000
+      REVALIDATE_SECRET: ci-revalidate-secret
+      API_INTERNAL_URL: http://127.0.0.1:8000/api/v1
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_DEFAULT_LOCALE: uz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Migrate and seed the demo menu
+        working-directory: backend
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_demo --no-images
+
+      - name: Serve the API
+        working-directory: backend
+        run: |
+          gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 2 \
+            --access-logfile - --error-logfile - &
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8000/api/v1/menu/?lang=uz" >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy in time" >&2
+          exit 1
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build (next build, standalone output)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Assert the standalone bundle was emitted
+        working-directory: frontend
+        run: test -f .next/standalone/server.js
+
+  # ---------------------------------------------------------------------------
+  # Container images. Built, never pushed — this workflow proves the Dockerfiles
+  # still assemble; publishing is a separate, credentialed release workflow.
+  #
+  # The web image runs `next build` inside the builder stage, so it inherits the
+  # same requirement as `web-build`: an API it can reach. It is given one on the
+  # host network and passed in as a build argument.
+  # ---------------------------------------------------------------------------
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [backend, frontend]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bosskafe
+          POSTGRES_USER: bosskafe
+          POSTGRES_PASSWORD: bosskafe
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bosskafe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_SECRET_KEY: ci-only-not-a-real-secret
+      DJANGO_DEBUG: 'True'
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: bosskafe
+      POSTGRES_USER: bosskafe
+      POSTGRES_PASSWORD: bosskafe
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      S3_BUCKET: bosskafe-media
+      FRONTEND_URL: http://localhost:3000
+      REVALIDATE_SECRET: ci-revalidate-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: bosskafe/api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Smoke-test the API image
+        run: |
+          docker run --rm --network host \
+            -e DJANGO_SETTINGS_MODULE -e DJANGO_SECRET_KEY -e DJANGO_DEBUG \
+            -e DJANGO_ALLOWED_HOSTS -e POSTGRES_DB -e POSTGRES_USER \
+            -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
+            -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
+            -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
+            bosskafe/api:ci python manage.py migrate --noinput
+
+      - name: Serve the API for the web image build
+        run: |
+          docker run -d --name bosskafe-api-ci --network host \
+            -e DJANGO_SETTINGS_MODULE -e DJANGO_SECRET_KEY -e DJANGO_DEBUG \
+            -e DJANGO_ALLOWED_HOSTS -e POSTGRES_DB -e POSTGRES_USER \
+            -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
+            -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
+            -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
+            bosskafe/api:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8000/api/v1/menu/?lang=uz" >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs bosskafe-api-ci >&2
+          exit 1
+
+      - name: Build the web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          target: runner
+          push: false
+          load: true
+          tags: bosskafe/web:ci
+          network: host
+          build-args: |
+            API_INTERNAL_URL=http://127.0.0.1:8000/api/v1
+            NEXT_PUBLIC_SITE_URL=http://localhost:3000
+            NEXT_PUBLIC_DEFAULT_LOCALE=uz
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Stop the API container
+        if: always()
+        run: docker rm -f bosskafe-api-ci || true
+
+  # ---------------------------------------------------------------------------
+  # Single required status check for branch protection.
+  # ---------------------------------------------------------------------------
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, web-build, images]
+    if: always()
+    steps:
+      - name: Fail if any job did not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+
+      - name: Report success
+        run: echo "All CI jobs succeeded."

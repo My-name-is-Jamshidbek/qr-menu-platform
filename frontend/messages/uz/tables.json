@@ -1,0 +1,69 @@
+{
+  "scan": {
+    "unavailableTitle": "Bu QR kod ishlamayapti",
+    "unavailableDescription": "Stol kodi eskirgan yoki vaqtincha o'chirilgan. Menyuni shundoq ham ko'rishingiz mumkin — buyurtma uchun ofitsiantni chaqiring.",
+    "openMenu": "Menyuni ochish",
+    "metaTitle": "Stol topilmadi"
+  },
+  "admin": {
+    "title": "Stollar",
+    "description": "QR kodlar, stol raqamlari va skanerlar statistikasi.",
+    "unauthorized": "Stollarni boshqarish uchun administrator sifatida kiring.",
+    "loadFailed": "Stollar ro'yxatini yuklab bo'lmadi.",
+    "stats": {
+      "tables": "Jami stollar",
+      "active": "Faol stollar",
+      "scansLast7Days": "7 kunlik skanerlar"
+    },
+    "empty": {
+      "title": "Hali stol qo'shilmagan",
+      "description": "Birinchi stolni qo'shing — QR kod avtomatik yaratiladi."
+    },
+    "columns": {
+      "number": "Raqam",
+      "label": "Nomi",
+      "status": "Holati",
+      "scans": "Skanerlar",
+      "actions": "Amallar"
+    },
+    "status": {
+      "active": "Faol",
+      "inactive": "O'chirilgan"
+    },
+    "scansUnknown": "Ma'lumot yo'q",
+    "actions": {
+      "create": "Stol qo'shish",
+      "printAll": "Barchasini chop etish",
+      "showQr": "QR kodni ko'rish",
+      "download": "Yuklab olish",
+      "edit": "Tahrirlash",
+      "delete": "O'chirish"
+    },
+    "form": {
+      "createTitle": "Yangi stol",
+      "editTitle": "Stolni tahrirlash",
+      "number": "Stol raqami",
+      "numberHint": "Stolda yozilgan raqam. Takrorlanmasligi shart.",
+      "label": "Nomi",
+      "labelHint": "Masalan: Ayvon 3",
+      "isActive": "Faol",
+      "isActiveHint": "O'chirilgan stolning QR kodi mehmonni menyuga o'tkazmaydi."
+    },
+    "qr": {
+      "title": "Stol {number} QR kodi",
+      "description": "Chop eting va stolga yopishtiring.",
+      "urlLabel": "Manzil"
+    },
+    "delete": {
+      "title": "Stolni o'chirish",
+      "description": "{name} va uning skaner tarixi butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi."
+    },
+    "toast": {
+      "created": "Stol qo'shildi",
+      "updated": "Stol yangilandi",
+      "deleted": "Stol o'chirildi",
+      "sheetReady": "Chop etish varag'i tayyor",
+      "failed": "Amalni bajarib bo'lmadi"
+    }
+  }
+}

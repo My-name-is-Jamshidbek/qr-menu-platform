@@ -1,0 +1,176 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/*
+ * Global base layer for the "Refined Gold" system.
+ *
+ * Everything here is token-driven: this file contains no colour literal that is
+ * not already a custom property in `src/styles/tokens.css`.
+ */
+
+/* ---------------------------------------------------------------- base ---- */
+
+@layer base {
+  html {
+    color-scheme: dark;
+    /* The header is sticky, so anchor jumps must clear it. */
+    scroll-padding-top: calc(var(--header-height) + 1rem);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--ground-base);
+    color: var(--cream);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    /*
+     * A single very wide, very dim gold pool behind the page. It is a lighting
+     * effect, not a surface: at these alphas it reads as a warm room rather
+     * than as a gold background.
+     */
+    background-image:
+      radial-gradient(80rem 40rem at 50% -12rem, color-mix(in oklab, var(--gold-700) 22%, transparent), transparent 70%),
+      radial-gradient(50rem 30rem at 100% 110%, color-mix(in oklab, var(--gold-900) 60%, transparent), transparent 72%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
+   * Focus is never removed — only replaced. `:focus-visible` keeps the ring off
+   * mouse clicks while guaranteeing it for keyboard and assistive tech.
+   */
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--gold-400);
+    color: var(--ink);
+  }
+
+  /* Scrollbar tinted to the ground so it does not punch a grey hole in the page. */
+  * {
+    scrollbar-color: var(--ground-border) transparent;
+    scrollbar-width: thin;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ----------------------------------------------------------- utilities ---- */
+
+/** Brushed-gold fill. Primary buttons, active pills, price badges, the logo ring. */
+@utility bg-gold-gradient {
+  background-image: var(--gradient-gold);
+  background-color: var(--gold-400);
+}
+
+/**
+ * Gold gradient applied to text itself. Reserved for one wordmark or hero line
+ * per screen — as a large text fill it loses contrast, so never use it for body copy.
+ */
+@utility text-gold-gradient {
+  background-image: var(--gradient-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/** A 1px rule that fades to nothing at both ends. Section separators. */
+@utility rule-gold {
+  height: 1px;
+  border: 0;
+  background-image: var(--gradient-hairline);
+}
+
+/** Digits align down a column. Mandatory on every price. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/** The one page gutter. Pairs with `max-w-content` for the standard column. */
+@utility gutter-x {
+  padding-inline: var(--gutter);
+}
+
+/**
+ * Horizontal scroller whose overflowing edges fade out instead of being cut.
+ * Used by the category filter strip on mobile.
+ */
+@utility edge-fade-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 var(--gutter),
+    #000 calc(100% - var(--gutter)),
+    transparent 100%
+  );
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/** Visually hidden but reachable by screen readers and by keyboard focus. */
+@utility sr-only-focusable {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+
+  &:focus-visible {
+    position: fixed;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+  }
+}
+
+/* ------------------------------------------------------------- motion ---- */
+
+/*
+ * One global honouring of `prefers-reduced-motion`. Durations collapse to a
+ * near-zero value rather than to `0s` so that `transitionend` listeners still
+ * fire and nothing gets stuck waiting for a callback.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

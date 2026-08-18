@@ -1,0 +1,246 @@
+# Production stack for BOSS KAFE.
+#
+# Differences from docker-compose.yml (development), on purpose:
+#   * no source is bind-mounted — every service runs the code baked into its image
+#   * no database, cache or object-storage port is published to the host; only
+#     Caddy binds 80/443
+#   * Django runs under gunicorn with the production settings module
+#   * Next.js runs the standalone server bundle (`node server.js`)
+#   * Caddy terminates TLS with certificates it obtains and renews on its own
+#   * every credential comes from the environment (.env.prod), never from this file
+#
+# Object storage is Cloudflare R2 in production, so no MinIO service exists here:
+# S3_* in .env.prod points at the R2 bucket and the same django-storages backend
+# is used unchanged.
+#
+# Usage:
+#   cp deploy/env.prod.example .env.prod && $EDITOR .env.prod
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# See deploy/deploy.md for the full runbook.
+
+name: bosskafe-prod
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Edge. The only service with published ports. Automatic TLS via ACME.
+  # ---------------------------------------------------------------------------
+  caddy:
+    <<: [*restart, *logging]
+    image: caddy:2.10-alpine
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required, e.g. menu.bosskafe.uz}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required for Let's Encrypt}
+    volumes:
+      # Configuration, not source: read-only and reloadable without a rebuild.
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Django's collected static files (admin, DRF, drf-spectacular) are served
+      # straight from disk instead of through gunicorn.
+      - django_static:/srv/static:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Next.js, standalone output. Server-side only: it holds the JWTs and is the
+  # sole caller of the API's admin endpoints.
+  # ---------------------------------------------------------------------------
+  web:
+    <<: [*restart, *logging]
+    build:
+      context: ./frontend
+      target: runner
+      args:
+        # `next build` prerenders the menu, which means it calls the API during
+        # the image build. Compose resolves `api` on the default network only at
+        # run time, so the build needs a reachable URL of its own; see deploy.md.
+        API_INTERNAL_URL: ${BUILD_API_INTERNAL_URL:-http://127.0.0.1:8000/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${SITE_URL:?SITE_URL is required, e.g. https://menu.bosskafe.uz}
+        NEXT_PUBLIC_DEFAULT_LOCALE: ${DEFAULT_LOCALE:-uz}
+    image: ${WEB_IMAGE:-bosskafe/web}:${IMAGE_TAG:-latest}
+    # Deliberately no `env_file`: the frontend has no business holding the
+    # database password or Django's secret key. It gets exactly the four values
+    # it reads, and nothing else.
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+      API_INTERNAL_URL: http://api:8000/api/v1
+      NEXT_PUBLIC_SITE_URL: ${SITE_URL}
+      NEXT_PUBLIC_DEFAULT_LOCALE: ${DEFAULT_LOCALE:-uz}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:?REVALIDATE_SECRET is required}
+    expose:
+      - '3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    # Healthcheck is defined in frontend/Dockerfile (fetches /uz).
+
+  # ---------------------------------------------------------------------------
+  # Django under gunicorn. Migrations and collectstatic run on every start; both
+  # are idempotent, so a restart or a rollback is safe.
+  # ---------------------------------------------------------------------------
+  api:
+    <<: [*restart, *logging]
+    build:
+      context: ./backend
+    image: ${API_IMAGE:-bosskafe/api}:${IMAGE_TAG:-latest}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        python manage.py migrate --noinput
+        python manage.py collectstatic --noinput
+        exec gunicorn config.wsgi:application \
+          --bind 0.0.0.0:8000 \
+          --workers ${GUNICORN_WORKERS:-3} \
+          --threads ${GUNICORN_THREADS:-2} \
+          --timeout ${GUNICORN_TIMEOUT:-60} \
+          --graceful-timeout 30 \
+          --max-requests 1000 \
+          --max-requests-jitter 100 \
+          --access-logfile - \
+          --error-logfile - \
+          --forwarded-allow-ips '*'
+    env_file:
+      # `required: false` so that this file can be linted (`docker compose
+      # config`) in a fresh checkout, where .env.prod does not exist. It is not
+      # a licence to run without one: `config/settings/base.py` reads every
+      # secret with `config(...)` and no fallback, so a container started
+      # without .env.prod dies immediately with the name of the missing key.
+      - path: .env.prod
+        required: false
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      # Written by collectstatic, read by Caddy. Not a source mount.
+      - django_static:/app/staticfiles
+    expose:
+      - '8000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # The public menu endpoint exercises Django, Postgres and Redis at once.
+      test:
+        - CMD-SHELL
+        - curl -fsS "http://127.0.0.1:8000/api/v1/menu/?lang=uz" >/dev/null || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Postgres. Never published; reachable only on the compose network.
+  # ---------------------------------------------------------------------------
+  postgres:
+    <<: [*restart, *logging]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      # Deterministic collation so an index built here is valid after a restore.
+      POSTGRES_INITDB_ARGS: '--data-checksums --locale=C --encoding=UTF8'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Redis. Cache only — the menu payload and the throttling counters. Losing it
+  # costs one slow request, so persistence stays off and memory is capped.
+  # ---------------------------------------------------------------------------
+  redis:
+    <<: [*restart, *logging]
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --save
+      - ''
+      - --appendonly
+      - 'no'
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Nightly pg_dump into a named volume, with retention. Same Postgres minor
+  # version as the server, so pg_dump and pg_restore always match.
+  # ---------------------------------------------------------------------------
+  backup:
+    <<: [*restart, *logging]
+    image: postgres:16-alpine
+    entrypoint: ['/bin/sh', '/usr/local/bin/backup.sh']
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./deploy/backup.sh:/usr/local/bin/backup.sh:ro
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Unhealthy once the newest dump is older than one and a half intervals —
+      # the signal that backups have silently stopped.
+      # `-mmin` rather than `-newermt`: this is busybox find, which has no GNU
+      # time predicates. Minimum window of 1 minute for a very short interval.
+      test:
+        - CMD-SHELL
+        - test -n "$$(find /backups -maxdepth 1 -name '*.dump' -mmin "-$$(( BACKUP_INTERVAL_SECONDS * 3 / 120 + 1 ))" -print -quit)"
+      interval: 1h
+      timeout: 10s
+      retries: 2
+      start_period: 5m
+
+volumes:
+  pgdata:
+  backups:
+  django_static:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,26 @@
+[project]
+name = "bosskafe-api"
+version = "1.0.0"
+description = "BOSS KAFE digital menu API (Django 5 + DRF)."
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.local"
+python_files = ["test_*.py", "tests.py"]
+testpaths = ["apps"]
+addopts = "--strict-markers --disable-warnings"
+
+[tool.coverage.run]
+source = ["apps"]
+omit = ["*/migrations/*", "*/tests/*"]

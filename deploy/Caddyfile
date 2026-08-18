@@ -1,0 +1,77 @@
+# Edge configuration for the production stack.
+#
+# Caddy obtains and renews the certificate for {$DOMAIN} from Let's Encrypt on
+# its own: nothing here needs a cron job, a certbot container or a manual renew.
+# The account e-mail comes from {$ACME_EMAIL}; both are injected by
+# docker-compose.prod.yml.
+#
+# Reload after an edit without dropping connections:
+#   docker compose -f docker-compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile
+{
+	email {$ACME_EMAIL}
+
+	# The admin API stays on loopback inside the container; the compose
+	# healthcheck is its only client.
+	admin 127.0.0.1:2019
+
+	servers {
+		# Caddy is the outermost proxy, so the client IP is the connection's
+		# peer address. Do not trust any inbound X-Forwarded-For.
+		trusted_proxies static private_ranges
+	}
+}
+
+# Redirect the apex to www, or the other way round, by adding the alias here.
+{$DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		# HSTS. Caddy already redirects http:// to https://; this stops the
+		# browser from trying plaintext at all.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		# Server fingerprinting adds nothing for the visitor.
+		-Server
+	}
+
+	# Django's collected static files: admin CSS/JS, DRF and drf-spectacular
+	# assets. Hashed filenames, so they are immutable.
+	handle_path /static/* {
+		root * /srv/static
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Everything the Django app owns.
+	#
+	# The match is deliberately narrow: Next.js also serves routes under /api
+	# (/api/auth/login, /api/auth/logout, /api/auth/refresh, /api/revalidate), so
+	# a blanket /api/* here would black-hole the staff login. Django only ever
+	# answers on the versioned prefix and the schema path.
+	#
+	# /admin/* is the Django admin — operator tooling. The staff UI is
+	# /{locale}/admin on the Next.js side and never collides with it.
+	@django path /api/v1/* /api/schema/* /admin/*
+	handle @django {
+		# Uploads: the product image endpoint accepts up to 8 MB.
+		request_body {
+			max_size 10MB
+		}
+		reverse_proxy api:8000
+	}
+
+	# Everything else — the public menu, the staff UI, and the Next.js route
+	# handlers under /api/auth and /api/revalidate.
+	handle {
+		reverse_proxy web:3000
+	}
+}

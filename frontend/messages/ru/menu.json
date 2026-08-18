@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "title": "Меню",
+    "titleForCategory": "{category}",
+    "description": "Меню BOSS KAFE: национальная кухня, гриль, салаты, десерты и напитки. С ценами и составом.",
+    "descriptionForCategory": "Раздел «{category}» в меню BOSS KAFE — {count, plural, one {# блюдо} few {# блюда} many {# блюд} other {# блюда}} с ценами.",
+    "ogImageAlt": "Меню BOSS KAFE"
+  },
+  "heading": {
+    "title": "Меню",
+    "subtitle": "Готовим каждый день из свежих продуктов. Цены указаны в сумах.",
+    "allCategories": "Все блюда"
+  },
+  "filters": {
+    "categoriesLabel": "Разделы меню",
+    "subcategoriesLabel": "Подразделы: {category}",
+    "all": "Все",
+    "allInCategory": "Все"
+  },
+  "search": {
+    "label": "Поиск по меню",
+    "placeholder": "Например: лагман",
+    "clear": "Очистить поиск",
+    "resultCount": "{count, plural, =0 {Ничего не найдено} one {Найдено # блюдо} few {Найдено # блюда} many {Найдено # блюд} other {Найдено # блюда}}",
+    "noResultsTitle": "По запросу «{query}» ничего не найдено",
+    "noResultsDescription": "Попробуйте другое слово или выберите другой раздел."
+  },
+  "product": {
+    "priceLabel": "Цена",
+    "currency": "сум",
+    "translationPending": "Без перевода",
+    "translationPendingHint": "Название этого блюда пока показано на узбекском языке."
+  },
+  "counts": {
+    "dishes": "{count, plural, =0 {нет блюд} one {# блюдо} few {# блюда} many {# блюд} other {# блюда}}"
+  },
+  "empty": {
+    "title": "В этом разделе пока пусто",
+    "description": "Сюда ещё не добавили блюда. Загляните в другие разделы меню.",
+    "action": "Все блюда"
+  },
+  "error": {
+    "title": "Не удалось загрузить меню",
+    "description": "Нет связи с сервером. Подождите немного и попробуйте снова.",
+    "retry": "Попробовать снова"
+  }
+}

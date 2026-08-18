@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Media & static
+backend/media/
+backend/staticfiles/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Test artifacts
+test-results/
+screenshots/
