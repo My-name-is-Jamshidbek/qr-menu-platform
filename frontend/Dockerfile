@@ -18,6 +18,19 @@ RUN npm ci
 # builder — produce the standalone server bundle.
 # ---------------------------------------------------------------------------
 FROM base AS builder
+
+# `next build` prerenders the menu, and generateStaticParams fetches it from the
+# API, so the build needs a reachable API base path rather than a runtime one.
+# These must be declared here: a build argument that is never named in the
+# Dockerfile is silently dropped, and the build fails inside npm with a message
+# that points at the app rather than at the missing ARG.
+ARG API_INTERNAL_URL
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_DEFAULT_LOCALE=uz
+ENV API_INTERNAL_URL=${API_INTERNAL_URL} \
+    NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL} \
+    NEXT_PUBLIC_DEFAULT_LOCALE=${NEXT_PUBLIC_DEFAULT_LOCALE}
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

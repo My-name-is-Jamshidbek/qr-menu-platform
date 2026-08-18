@@ -77,6 +77,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `github.repository` preserves the owner's capitalisation, and a Docker
+      # reference must be lowercase. metadata-action folds case for the tags it
+      # generates, but any reference written by hand below has to be folded here
+      # or docker rejects it as an invalid reference format.
+      - name: Fold the image namespace to lowercase
+        run: |
+          echo "IMAGE_NS=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_SHA=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Sign in to the registry
@@ -92,7 +101,7 @@ jobs:
         id: api-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/api
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/api
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -106,7 +115,7 @@ jobs:
         id: web-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/web
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/web
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
@@ -137,7 +146,7 @@ jobs:
             -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
             -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
             -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
-            "${{ env.REGISTRY }}/${{ github.repository }}/api:sha-$(git rev-parse --short HEAD)" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/api:${{ env.IMAGE_SHA }}" \
             python manage.py migrate --noinput
 
       - name: Serve the API so the web image can prerender
@@ -148,7 +157,7 @@ jobs:
             -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
             -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
             -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
-            "${{ env.REGISTRY }}/${{ github.repository }}/api:sha-$(git rev-parse --short HEAD)"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/api:${{ env.IMAGE_SHA }}"
           for _ in $(seq 1 30); do
             if curl -fsS "http://127.0.0.1:8000/api/v1/menu/?lang=uz" >/dev/null; then
               echo "API is up"
@@ -184,14 +193,14 @@ jobs:
       - name: Attest the API image
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/api
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/api
           subject-digest: ${{ steps.api-push.outputs.digest }}
           push-to-registry: true
 
       - name: Attest the web image
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/web
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}/web
           subject-digest: ${{ steps.web-push.outputs.digest }}
           push-to-registry: true
 
