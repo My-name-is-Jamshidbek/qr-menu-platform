@@ -5,7 +5,7 @@
 # are not at /usr/bin/chromium and /usr/bin/chromedriver.
 
 selenium==4.31.0
-pytest==9.0.2
+pytest==9.0.3
 
 # Fixtures create and delete their own rows through the REST API.
 requests==2.32.3
