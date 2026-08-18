@@ -8,7 +8,7 @@ selenium==4.31.0
 pytest==9.0.2
 
 # Fixtures create and delete their own rows through the REST API.
-requests==2.32.3
+requests==2.33.0
 
 # Clears the API's 5/min login throttle between the sign-in tests.
 redis==5.2.1
