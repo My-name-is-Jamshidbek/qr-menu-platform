@@ -1,0 +1,207 @@
+# Publishes both container images to the GitHub Container Registry.
+#
+# CI already proves the Dockerfiles assemble; this workflow is the credentialed
+# half that ships them. It runs only on the default branch and on version tags,
+# never on a pull request, so a fork can never push to the registry.
+name: Publish images
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The web image runs `next build` in its builder stage, and that build calls
+    # generateStaticParams, which fetches the live menu. So the API has to be
+    # running and backed by a real database before the web image can be built.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bosskafe
+          POSTGRES_USER: bosskafe
+          POSTGRES_PASSWORD: bosskafe
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bosskafe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_SECRET_KEY: build-only-not-a-real-secret
+      DJANGO_DEBUG: 'True'
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: bosskafe
+      POSTGRES_USER: bosskafe
+      POSTGRES_PASSWORD: bosskafe
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_ACCESS_KEY: build-access-key
+      S3_SECRET_KEY: build-secret-key
+      S3_BUCKET: bosskafe-media
+      FRONTEND_URL: http://localhost:3000
+      REVALIDATE_SECRET: build-revalidate-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `latest` only ever points at the default branch; every image also carries
+      # its commit SHA so a running container can be traced back to a diff.
+      - name: Derive API tags
+        id: api-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/api
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.title=QR Menu Platform API
+            org.opencontainers.image.description=Django/DRF backend for the trilingual QR menu
+
+      - name: Derive web tags
+        id: web-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/web
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.title=QR Menu Platform web
+            org.opencontainers.image.description=Next.js frontend and backend-for-frontend
+
+      - name: Build and push the API image
+        id: api-push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      # A published image that cannot reach its own database is worth catching
+      # here rather than on the server.
+      - name: Smoke-test the pushed API image
+        run: |
+          docker run --rm --network host \
+            -e DJANGO_SETTINGS_MODULE -e DJANGO_SECRET_KEY -e DJANGO_DEBUG \
+            -e DJANGO_ALLOWED_HOSTS -e POSTGRES_DB -e POSTGRES_USER \
+            -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
+            -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
+            -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
+            "${{ env.REGISTRY }}/${{ github.repository }}/api:sha-$(git rev-parse --short HEAD)" \
+            python manage.py migrate --noinput
+
+      - name: Serve the API so the web image can prerender
+        run: |
+          docker run -d --name publish-api --network host \
+            -e DJANGO_SETTINGS_MODULE -e DJANGO_SECRET_KEY -e DJANGO_DEBUG \
+            -e DJANGO_ALLOWED_HOSTS -e POSTGRES_DB -e POSTGRES_USER \
+            -e POSTGRES_PASSWORD -e POSTGRES_HOST -e POSTGRES_PORT -e REDIS_URL \
+            -e S3_ENDPOINT_URL -e S3_PUBLIC_URL -e S3_ACCESS_KEY -e S3_SECRET_KEY \
+            -e S3_BUCKET -e FRONTEND_URL -e REVALIDATE_SECRET \
+            "${{ env.REGISTRY }}/${{ github.repository }}/api:sha-$(git rev-parse --short HEAD)"
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8000/api/v1/menu/?lang=uz" >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs publish-api >&2
+          exit 1
+
+      - name: Build and push the web image
+        id: web-push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          target: runner
+          push: true
+          network: host
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          build-args: |
+            API_INTERNAL_URL=http://127.0.0.1:8000/api/v1
+            NEXT_PUBLIC_SITE_URL=http://localhost:3000
+            NEXT_PUBLIC_DEFAULT_LOCALE=uz
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Stop the API container
+        if: always()
+        run: docker rm -f publish-api || true
+
+      # Signed provenance: proof that this digest came out of this workflow run.
+      - name: Attest the API image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/api
+          subject-digest: ${{ steps.api-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest the web image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/web
+          subject-digest: ${{ steps.web-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        run: |
+          {
+            echo "### Images published"
+            echo
+            echo '```'
+            echo "${{ steps.api-meta.outputs.tags }}"
+            echo "${{ steps.web-meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

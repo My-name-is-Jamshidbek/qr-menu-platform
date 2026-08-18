@@ -1,57 +1,109 @@
-# BOSS KAFE
+<div align="center">
 
-A trilingual digital menu for a restaurant in Tashkent, and the staff panel behind it.
-Guests scan the QR code on their table and get the menu in Uzbek, Russian or English;
-staff edit prices, translations and photos from a browser and the public pages update in
-about two seconds without a rebuild.
+# QR Menu Platform
 
-This is a rewrite. The original was a single-page React app that kept its data in
-Firestore, its admin password in client-side JavaScript, and its photos as base64 blobs
-inside the documents. Section [Legacy → rebuild](#legacy--rebuild) is a line-by-line
-account of what was wrong and what replaced it.
+**A trilingual QR menu for a café in Tashkent, and the staff panel behind it.**
+
+Guests scan the code on their table and read the menu in Uzbek, Russian or English.
+Staff change a price from a browser and the public page reflects it in about two seconds —
+no rebuild, no deploy.
+
+[![CI](https://github.com/My-name-is-Jamshidbek/qr-menu-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/My-name-is-Jamshidbek/qr-menu-platform/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-289%20passing-3F7D5A)
+![Coverage](https://img.shields.io/badge/backend%20coverage-92%25-3F7D5A)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
+![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django)
+![License](https://img.shields.io/badge/license-MIT-D4AF37)
+
+</div>
 
 ![Public menu, desktop](screenshots/menu-desktop.png)
 
-![Admin product list](screenshots/admin-03-product-list.png)
+<table>
+<tr>
+<td width="50%"><img src="screenshots/menu-mobile.png" alt="Menu on a phone"></td>
+<td width="50%"><img src="screenshots/admin-03-product-list.png" alt="Admin product list"></td>
+</tr>
+<tr>
+<td align="center"><em>What a guest sees after scanning</em></td>
+<td align="center"><em>What staff use to change it</em></td>
+</tr>
+</table>
+
+---
+
+## Why this repository exists
+
+This is a **rewrite**, and the interesting part is what it replaced.
+
+The original was one folder holding two half-finished frontends at once — a Vite React app
+under `src/` and a Next.js app under `app/` — plus a nested duplicate of the whole project.
+The two halves read **different Firestore collections** (`menu_items` and `menu`), so a dish
+added in one was invisible in the other. The admin password was compared in client-side
+JavaScript and a session was recorded as `localStorage.adminToken = "authenticated"`.
+Every photo lived inside its database document as a base64 string: **11.2 MB of JSON for
+86 dishes**, downloaded in full by a guest sitting at a table on café Wi-Fi.
+
+[Legacy → rebuild](#legacy--rebuild) has the point-by-point account.
+
+## Where to look first
+
+If you are reviewing this and have five minutes, these are the files that carry the ideas:
+
+| # | File | Why it is worth opening |
+|---|---|---|
+| 1 | [`frontend/src/app/api/auth/login/route.ts`](frontend/src/app/api/auth/login/route.ts) | The backend-for-frontend. Credentials are exchanged with Django server-side and the JWT pair goes into httpOnly cookies — the browser never holds a token, so an XSS bug cannot lift a session |
+| 2 | [`backend/apps/menu/api/aggregate.py`](backend/apps/menu/api/aggregate.py) | The whole menu in one cached, N+1-free query, with a test that asserts the query count rather than trusting it |
+| 3 | [`backend/apps/menu/legacy/quality.py`](backend/apps/menu/legacy/quality.py) | The migration refuses to launder bad data: rows are quarantined or flagged, with a reason, into a CSV a human reviews |
+| 4 | [`backend/apps/menu/models.py`](backend/apps/menu/models.py) | Translations as rows with a unique `(object, language)` constraint — which is how "what is missing in Russian?" became a query instead of a guess |
+| 5 | [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css) | The palette. Gold is an accent on a warm near-black ground, never a page background |
+| 6 | [`tests/e2e/test_admin_products.py`](tests/e2e/test_admin_products.py) | Selenium asserts the primary button is genuinely hittable — `elementFromPoint` must resolve to the button itself, because in the original it did not |
+
+`/uz/styleguide` renders every component in every state, which is the fastest way to see the
+design system without clicking through the app.
 
 ## Stack
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend | Next.js 16, App Router, React 19, TypeScript strict | Server Components mean the menu ships as static HTML and the admin panel needs no client-side auth guard at all |
-| Styling | Tailwind CSS 4 with CSS custom properties | Tokens in `src/styles/tokens.css`, one source of truth for the palette; no hex literal appears in a component |
-| i18n | `next-intl`, three locales, always-prefixed URLs | `/uz`, `/ru`, `/en` are distinct canonical URLs, so each language is separately indexable |
-| API | Django 5.2 + DRF, Python 3.12+ | The admin surface is 80% CRUD over a relational schema — the ORM, migrations and admin are the whole point |
-| Schema | `drf-spectacular` → OpenAPI 3.1 → `openapi-typescript` | Frontend response types are generated, never hand-written; a backend field rename breaks `tsc`, not production |
-| Database | Postgres 16 | Translations are rows, not JSON — "which products have no Russian name?" is one query with an index behind it |
-| Cache | Redis 7 | Menu aggregate per language, 300s TTL, dropped on every write |
-| Images | Pillow → WebP at 400/800/1600 → S3-compatible storage (MinIO in dev, Cloudflare R2 in production) | Photos belong in object storage, not in database rows |
-| Auth | SimpleJWT, tokens held server-side in httpOnly cookies | No token ever reaches the document, so an XSS bug cannot steal a session |
-| Tests | pytest + factory_boy (229 tests, 92% line coverage), `node:test` for frontend logic, Selenium for the browser journey | |
+| Frontend | Next.js 16 App Router, React 19, TypeScript strict | Server Components let the menu ship as static HTML and the admin guard live on the server, not in the client bundle |
+| Styling | Tailwind CSS 4 over CSS custom properties | One palette in `tokens.css`; no hex literal appears in a component |
+| i18n | `next-intl`, always-prefixed `/uz` `/ru` `/en` | Each language is a distinct canonical URL, separately indexable |
+| API | Django 5.2 + DRF | The admin surface is CRUD over a relational schema — ORM, migrations and constraints are the entire value |
+| Types | `drf-spectacular` → OpenAPI 3.1 → `openapi-typescript` | Response types are generated. A backend field rename breaks `tsc`, not production |
+| Database | Postgres 16 | Translations are rows, not JSON blobs |
+| Cache | Redis 7 | Menu aggregate per language, 300 s TTL, dropped on every write |
+| Images | Pillow → WebP at 400/800/1600 → S3-compatible storage | MinIO in development, Cloudflare R2 in production |
+| Auth | SimpleJWT held server-side in httpOnly cookies | See file #1 above |
+| Tests | pytest + factory_boy · `node:test` · **Selenium** | 289 tests total; the browser suite is Selenium by project rule |
+
+## Numbers
+
+Measured on this machine, not estimated.
+
+| | Legacy | This rebuild |
+|---|---|---|
+| Menu payload, first load | 11.2 MB of JSON | **415 KB** desktop · 460 KB mobile |
+| Menu API response | — | 56 KB for 105 dishes |
+| Text on gold contrast | 2.10:1 — fails WCAG AA | **8.50:1** ink on gold · 17.52:1 cream on ground |
+| Prerendered pages | 0 | 58, across three locales |
+| Automated tests | 0 | **289** — 229 backend (92% lines), 24 frontend, 36 Selenium |
 
 ## Quickstart
 
-The whole stack runs in Docker. From a clean clone:
-
 ```bash
-git clone <repo> boss-kafe && cd boss-kafe
+git clone https://github.com/My-name-is-Jamshidbek/qr-menu-platform.git
+cd qr-menu-platform
 cp .env.example .env
 
-# Postgres, Redis, MinIO, and a one-shot job that creates the public bucket
+# Postgres, Redis, MinIO, plus a one-shot job that creates the public bucket
 docker compose up -d postgres redis minio minio-init
 
 # API and web
 docker compose up --build api web
 ```
 
-Open <http://localhost:3100>. The API is on <http://localhost:8100>, its Swagger UI on
-<http://localhost:8100/api/schema/swagger-ui/>, and the MinIO console on
-<http://localhost:9101>.
-
-Ports are deliberately offset (3100 / 8100 / 5434 / 6382 / 9100) so the stack coexists
-with other projects on the same host.
-
-### Populate the database
+Then populate it:
 
 ```bash
 docker compose exec api python manage.py migrate
@@ -59,20 +111,27 @@ docker compose exec api python manage.py seed_demo
 docker compose exec api python manage.py createsuperuser
 ```
 
-`seed_demo` builds the real category tree, 42 dishes, generated WebP photos in the
-bucket, and deliberately uneven translation coverage — half the dishes have no Russian
-or English name, because that is what the production data looks like and it is the only
-way the fallback rule and the panel's "missing translations" counter are ever exercised.
-It is idempotent; `--flush` rebuilds from scratch.
+| Service | URL |
+|---|---|
+| Menu | <http://localhost:3100> |
+| Style guide | <http://localhost:3100/uz/styleguide> |
+| Admin panel | <http://localhost:3100/uz/admin> |
+| API + Swagger | <http://localhost:8100/api/schema/swagger-ui/> |
+| MinIO console | <http://localhost:9101> |
 
-To migrate the real legacy data instead, set `FIRESTORE_PROJECT_ID` and run
-`python manage.py import_firestore --dry-run` first — it writes a verdict for every
-document to `backend/var/import_report.csv` without touching the database.
+Ports are deliberately offset (3100 / 8100 / 5434 / 6382 / 9100) so the stack coexists with
+other projects on the same host.
 
-### Running the app services on the host instead
+`seed_demo` builds the category tree, **42 dishes**, generated WebP photos in the bucket, and
+deliberately uneven translation coverage — because that is what the real data looked like, and
+it is the only way the fallback rule and the panel's missing-translation counter are ever
+exercised. It is idempotent; `--flush` rebuilds from scratch.
 
-Useful when you want a fast edit loop. Keep the three infrastructure containers up and
-source `.env.hostdev`, which is `.env` with host-reachable addresses.
+<details>
+<summary><strong>Running the app services on the host instead</strong> (faster edit loop)</summary>
+
+Keep the three infrastructure containers up and source `.env.hostdev`, which is `.env` with
+host-reachable addresses.
 
 ```bash
 set -a; source .env.hostdev; set +a
@@ -87,35 +146,79 @@ npm ci
 npm run dev -- -p 3100
 ```
 
-### Checks
+</details>
+
+<details>
+<summary><strong>Running the checks</strong></summary>
 
 ```bash
 # backend — 229 tests, 92% coverage
 cd backend && set -a && source ../.env.hostdev && set +a
-.venv/bin/python -m pytest -q
 .venv/bin/python -m pytest -q --cov
-.venv/bin/python -m ruff check .
+.venv/bin/ruff check .
 
 # frontend
 cd frontend && set -a && source ../.env.hostdev && set +a
-npm run typecheck                        # next typegen && tsc --noEmit
+npm run typecheck                              # next typegen && tsc --noEmit
 npm run lint
-node --test "src/features/menu/*.test.mjs"   # 24 tests
-npm run build                            # prerenders 58 pages; needs the API running
+node --test "src/features/menu/"*.test.mjs     # 24 tests
+npm run build                                  # prerenders 58 pages; needs the API up
+
+# browser journey — 36 Selenium tests, needs the whole stack running
+cd tests && python -m pytest -q
 ```
 
-`npm run build` calls `generateStaticParams`, which fetches the live menu, so the API
-must be reachable at `API_INTERNAL_URL` before you build.
+`npm run build` calls `generateStaticParams`, which fetches the live menu, so the API must be
+reachable at `API_INTERNAL_URL` before you build.
 
-## Project layout
+</details>
+
+## Migrating the real legacy data
+
+The importer reads the old Firestore collection over its REST API, decodes each base64 photo,
+converts it to WebP, and writes to Postgres. It is idempotent and refuses to launder bad rows.
+
+```bash
+python manage.py import_firestore --dry-run   # writes a verdict per document, touches nothing
+python manage.py import_firestore
+```
+
+A dry run over the real collection reports:
+
+```
+read             86
+importable       74
+needs_review     10      6 category mismatch · 5 suspicious text · 2 duplicate document
+quarantined      12      every one of them priced below the 100 UZS floor
+```
+
+The twelve rejects are real: dishes recorded at 5, 28 and 35 so'm. They land in
+`backend/var/import_report.csv` with a reason instead of quietly reaching the menu. Rows
+flagged `needs_review` are imported but held back with `is_available=False`, so a human
+decides — for example the bread filed under *beverages*.
+
+## Legacy → rebuild
+
+| What the original did | Why it hurt | What replaced it |
+|---|---|---|
+| A Vite React app and a Next.js app in the same folder, plus a nested duplicate copy of both | Two build systems fought over one folder; nobody could say which file was live | One Next.js app. The panel is a route group inside it and both sides consume the same generated API types |
+| Two divergent Firestore collections (`menu_items`, `menu`) for the same dishes | A dish added in the panel was invisible on the menu | One Postgres schema with foreign keys and unique constraints. There is no second copy to diverge from |
+| Admin password compared in client JavaScript; `localStorage.adminToken = "authenticated"` | Anyone who opened DevTools was an administrator | Credentials are exchanged server-side for a JWT pair stored in httpOnly cookies. See [ARCHITECTURE](docs/ARCHITECTURE.md#the-bff-auth-model) |
+| Photos as `data:image/jpeg;base64,…` inside each document | 11.2 MB of JSON for 86 dishes, on café Wi-Fi | WebP at three widths in object storage. The API returns a `srcset` and intrinsic dimensions, so the browser fetches one right-sized file and the grid never reflows |
+| Prices stored as whole numbers but never validated — 5, 28, 35 so'm all present | Nonsense prices on a live menu | `PositiveIntegerField` with a database `CheckConstraint` at 100. The importer quarantined twelve documents rather than forcing them through |
+| `#D4AF37` as the page background with white text on top | 2.10:1 contrast — fails WCAG AA outright | Gold as an accent on a warm near-black ground: 8.50:1 ink on gold, 17.52:1 cream on ground |
+| The "add product" button sat underneath another element | The primary action silently did nothing when clicked | Every interactive element is a real link or form, and a Selenium test asserts `elementFromPoint` resolves to the button itself |
+| Three language fields that were filled by copying the Uzbek text | 72 of 86 Russian names were byte-identical to the Uzbek and only 6 contained a single Cyrillic character — a trilingual menu that was never translated | Translations are rows with a unique `(object, language)` constraint. A missing string falls back to Uzbek and is marked `is_fallback` in the API; the panel reports the exact gaps per dish |
+
+## Layout
 
 ```
 backend/
-  config/settings/      base · local · production; every secret read from env, no fallback
+  config/settings/      base · local · production; every secret from env, no fallback
   apps/common/          TimeStampedModel, translation fallback, WebP pipeline,
                         error handler, accent-folding search, revalidation ping
   apps/menu/            Category · Product · translations · images
-    api/                public menu + product endpoints, admin CRUD, Redis layer
+    api/                public menu and product endpoints, admin CRUD, Redis layer
     legacy/             Firestore reader, category mapper, data-quality rules,
                         base64 image recovery, CSV report
     management/         import_firestore, seed_demo
@@ -124,31 +227,26 @@ backend/
 frontend/
   src/app/[locale]/     (public)/menu — statically generated; admin/ — dynamic
   src/app/api/auth/     login · refresh · logout — the only places a JWT is handled
-  src/app/api/revalidate/  ISR webhook the API posts to
+  src/app/api/revalidate/   ISR webhook the API posts to after every write
   src/app/t/[token]/    QR landing: records the scan, sets the table cookie, redirects
-  src/features/         menu · admin · tables — data access, logic, components per feature
+  src/features/         menu · admin · tables — data access, logic and components per feature
   src/components/ui/    Button, Card, Dialog, … driven entirely by tokens
   src/i18n/             routing, per-request config, generated message catalog
   messages/{uz,ru,en}/  UI strings by namespace — nothing user-facing lives in a component
-docs/                   contracts (data model, API, design system) + architecture, ADRs
-screenshots/            captures from the Selenium journey
+tests/e2e/              Selenium journey, page objects, screenshot-on-failure
+docs/                   contracts, architecture, ADRs
 ```
 
-`/uz/styleguide` renders every component in every state — the fastest way to see the
-design system without clicking through the app.
+## Container images
 
-## Legacy → rebuild
+Every push to `main` publishes both images to the GitHub Container Registry:
 
-| What the original did | Why it hurt | What replaced it |
-|---|---|---|
-| Two separate React apps (`BOSS_menu`, `BOSS_admin`) in one folder, sharing nothing but a Firebase config | Every schema change had to be made twice and drifted immediately | One Next.js app; the panel is a route group inside it, and both sides read the same generated API types |
-| Two divergent Firestore collections for the same dishes | The menu and the admin listed different prices for the same food | One Postgres schema. Products, categories and translations are rows with foreign keys and unique constraints; there is no second copy to diverge from |
-| Admin password compared in client JavaScript, session marked with `localStorage.adminToken = "authenticated"` | Anyone who opened DevTools was an administrator | Credentials are posted to a Next.js route handler, exchanged with Django for a JWT pair, and stored in httpOnly cookies the browser cannot read. Every admin request is made server-side. See [ARCHITECTURE](docs/ARCHITECTURE.md#the-bff-auth-model) |
-| Photos as `data:image/jpeg;base64,…` inside each document | ~15 MB of JSON for 86 dishes; the menu was unusable on a phone at a table | Uploads go to object storage as WebP at three widths; the API returns a `srcset` and intrinsic dimensions, so the browser fetches one appropriately-sized file and the grid never reflows |
-| Prices as floats, some of them wrong (`5`, `28`) | Rounding artefacts, and nonsense prices nobody caught | `PositiveIntegerField` of whole UZS with a database `CheckConstraint` at 100. The migration quarantined 12 documents and flagged 13 more for review in `backend/var/import_report.csv` rather than forcing them through |
-| `#D4AF37` as the page background, white text on top | ≈2.0:1 contrast — fails WCAG AA outright | Gold is an accent on a warm near-black ground; ink on gold, cream or gold-300 on dark, all ≥ 8:1 |
-| The primary "add to order" button had no handler | The main call to action did nothing | Every interactive element is a real link, form or Server Action. The product card is deliberately *not* clickable, because there is no detail page for it to go to |
-| Translations that existed only in Uzbek, silently blank elsewhere | 74 products had no Russian or English name and nobody knew | Translations are a table with a unique `(object, language)` constraint. A missing string falls back to Uzbek and is flagged `is_fallback` in the API; the panel shows the exact gaps per product |
+```bash
+docker pull ghcr.io/my-name-is-jamshidbek/qr-menu-platform/api:latest
+docker pull ghcr.io/my-name-is-jamshidbek/qr-menu-platform/web:latest
+```
+
+Tags: `latest`, the short SHA, and the semver tag when one is pushed.
 
 ## Documentation
 
@@ -159,4 +257,12 @@ design system without clicking through the app.
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | Every table, field, index and deletion rule |
 | [docs/API_CONTRACT.md](docs/API_CONTRACT.md) | Endpoints, payloads, error shape, throttles |
 | [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Tokens, typography, component rules, contrast budget |
+| [deploy/deploy.md](deploy/deploy.md) | Provisioning, first deploy, secret rotation, restore, rollback |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions, workflow, definition of done |
+
+## Credits and licence
+
+Built as a portfolio rewrite of a real café menu. The dish photographs belong to the café;
+`seed_demo` generates a complete stand-in dataset so the project runs without them.
+
+MIT — see [LICENSE](LICENSE).

@@ -1,1 +1,26 @@
 legacy_id,status,reason,name_uz,category,subcategory,price,detail
+lcGBdSUhwhZnOKpJEQ2X,QUARANTINED,price_too_low,Babayevski shakalad,desserts,,28,28 UZS is below the 100 UZS floor
+MmB58Ceu9VEQRsVfpq9A,QUARANTINED,price_too_low,Fistyashka,desserts,,5,5 UZS is below the 100 UZS floor
+8kwv5G474OK4PLk0iODb,QUARANTINED,price_too_low,Millennium shakalad,desserts,,28,28 UZS is below the 100 UZS floor
+fQhP91WsssERk25JQMm6,QUARANTINED,price_too_low,Moxito kivi,beverages,soft,35,35 UZS is below the 100 UZS floor
+5aHzCwC5O9rXUJtyRwBU,QUARANTINED,price_too_low,O'rim sirniy palichka,desserts,,5,5 UZS is below the 100 UZS floor
+YijCd5CDl4f6z74kVT0e,QUARANTINED,price_too_low,Okrushka,salads,,12,12 UZS is below the 100 UZS floor
+w67fdz03VgN4ptRTQBxG,QUARANTINED,price_too_low,Pepsi 05,beverages,soft,8,8 UZS is below the 100 UZS floor
+6nkpuqrUJsWp4S8szfp6,QUARANTINED,price_too_low,Pepsi balnishnik,beverages,soft,10,10 UZS is below the 100 UZS floor
+Zjc4rPAv08RFXbbfAvV1,QUARANTINED,price_too_low,Pista,desserts,,5,5 UZS is below the 100 UZS floor
+5zToAJNJXXMjSxGhrBuE,QUARANTINED,price_too_low,Sirniy palichka,desserts,,5,5 UZS is below the 100 UZS floor
+FIm7MJLQlZGEpLA4gbgZ,QUARANTINED,price_too_low,Sirniy palichka,desserts,,15,15 UZS is below the 100 UZS floor
+UwXFkyOS8TmIo0jTkDYp,QUARANTINED,price_too_low,Yagona z,desserts,,6,6 UZS is below the 100 UZS floor
+7ahniqp3deAwQ0HZoapC,NEEDS_REVIEW,category_mismatch,Buhanka,beverages,,4000,"'buhanka' suggests no current section, filed under 'beverages'"
+3FeP2KsitKp5uaXG2MLb,NEEDS_REVIEW,category_mismatch,Choʻrak,beverages,,6000,"'chorak' suggests no current section, filed under 'beverages'"
+50FUSPkLWyuqA6ISfFqk,NEEDS_REVIEW,category_mismatch,Non asarti,desserts,,20000,"'non' suggests no current section, filed under 'desserts'"
+XmziWrfy4R4nZGCjwOGG,NEEDS_REVIEW,category_mismatch,Patir,beverages,,15000,"'patir' suggests no current section, filed under 'beverages'"
+f6ER257HsZSr0wPyVYGb,NEEDS_REVIEW,category_mismatch,Platina latina piva,beverages,soft,10000,alcoholic drink filed under 'soft'
+E7e94lmBATKmbLtMmxu1,NEEDS_REVIEW,category_mismatch,Qizil non,beverages,,12000,"'non' suggests no current section, filed under 'beverages'"
+zaxAfck8ODSuYZpQLSGM,NEEDS_REVIEW,duplicate_document,Original Asarti,national,quyuq,470000,same name and category as document BzT3ysPkgGknKMnAgHvb
+FIm7MJLQlZGEpLA4gbgZ,NEEDS_REVIEW,duplicate_document,Sirniy palichka,desserts,,15,same name and category as document 5zToAJNJXXMjSxGhrBuE
+SNr1SLK3hHufzagYP881,NEEDS_REVIEW,suspicious_text,Kabob asarti,national,quyuq,420000,en name '!jgcjf!x'
+ZnQwKPnrYbDgxlWFAXNU,NEEDS_REVIEW,suspicious_text,Uyg'ur kabob,national,quyuq,230000,ru name '!nbxa kvh'
+ZnQwKPnrYbDgxlWFAXNU,NEEDS_REVIEW,suspicious_text,Uyg'ur kabob,national,quyuq,230000,en name 'As kbvvk ahx'
+s1OjSjRJ95JFwN9QCzPM,NEEDS_REVIEW,suspicious_text,Vaguri,national,quyuq,250000,ru name 'Jhvz'
+s1OjSjRJ95JFwN9QCzPM,NEEDS_REVIEW,suspicious_text,Vaguri,national,quyuq,250000,en name 'Kbvs gjv'
